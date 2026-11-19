@@ -106,6 +106,22 @@ summary{cursor:pointer;color:var(--muted);font-size:13px;margin-top:8px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;border:1px solid var(--line);padding:10px 16px;border-radius:10px;font-size:14px;z-index:10}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40px;max-width:720px;margin:0 auto}
 #work{position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none}
+.tabs{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:16px}
+.tab{background:none;border:0;color:var(--muted);padding:8px 14px;border-radius:9px;font:600 14px system-ui,sans-serif;cursor:pointer}
+.tab.on{background:var(--card2);color:var(--text)}
+.linkrow{display:flex;gap:8px}.linkrow input{font-size:16px;padding:14px 16px}
+.ytprev{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;margin-top:14px;align-items:start}
+.ytframe{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000;border:1px solid var(--line)}
+.ytframe.short{aspect-ratio:9/16;max-height:420px;margin:0 auto;width:auto;height:420px}
+.ytframe iframe,.ytframe img{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover}
+.ytframe .ph{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:13px;text-align:center;padding:16px;background:linear-gradient(135deg,#1b1b24,#0e0e14)}
+.ytinfo h3{font-size:17px;line-height:1.3}.ytinfo p{margin:4px 0}
+.dlstate{margin-top:10px;font-size:13px}
+.dlstate .bar{margin:8px 0 4px}
+.dlset{margin-top:14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.dlset summary{margin:0;color:var(--text);font-weight:600}
+.ok{color:var(--ok)}.bad{color:var(--danger)}
+@media(max-width:760px){.ytprev{grid-template-columns:1fr}}
 @media(max-width:760px){.cap-layout,.srcbox,.progress-layout{grid-template-columns:1fr}.phone{position:relative;top:0;width:210px;margin:0 auto}main,.top{padding-left:14px;padding-right:14px}.card{padding:16px}.live{max-width:200px;margin:0 auto}}
 </style>
 </head>
@@ -118,23 +134,60 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
 <main>
 <section class="hero" id="hero">
   <h1>Long video in.<br><span class="hl">Ready-to-post clips</span> out.</h1>
-  <p>Drop in a video. Clip Vortex finds the best moments, reframes them for Shorts, Reels &amp; TikTok, and adds captions styled your way — all on your device.</p>
+  <p>Paste a YouTube link or drop in a video. Clip Vortex finds the best moments, reframes them for Shorts, Reels &amp; TikTok, and adds captions styled your way — all on your device.</p>
 </section>
 
 <form id="form" autocomplete="off">
   <!-- 1 SOURCE -->
   <section class="card">
     <div class="head"><span class="num">1</span><h2>Your video</h2></div>
-    <div class="srcbox">
-      <div>
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab on" data-src="link">Paste YouTube link</button>
+      <button type="button" class="tab" data-src="file">Upload video file</button>
+    </div>
+
+    <div id="srcLink">
+      <div class="linkrow">
+        <input id="ytUrl" type="text" inputmode="url" placeholder="Paste a YouTube link — youtube.com/watch?v=…  ·  youtu.be/…  ·  /shorts/…">
+        <button type="button" class="ghost" id="pasteBtn">Paste</button>
+      </div>
+      <p class="err" id="ytErr" hidden></p>
+      <div class="ytprev" id="ytPrev" hidden>
+        <div class="ytframe" id="ytFrame"></div>
+        <div class="ytinfo">
+          <h3 id="ytTitle">YouTube video</h3>
+          <p class="muted" id="ytAuthor"></p>
+          <a id="ytOpen" target="_blank" rel="noopener" class="muted" style="font-size:13px">Open on YouTube ↗</a>
+          <div class="dlstate" id="dlState"></div>
+          <div class="row" style="margin-top:6px">
+            <label class="field sm" style="min-width:140px;margin:0"><span>Download quality</span>
+              <select id="dlQuality"><option value="720" selected>720p (faster)</option><option value="1080">1080p</option><option value="480">480p (fastest)</option></select>
+            </label>
+          </div>
+        </div>
+      </div>
+      <details class="dlset" id="dlSet">
+        <summary>⚙ Download settings <span class="muted" id="helperChip"></span></summary>
+        <p class="muted" style="font-size:13px;margin:10px 0">Websites can't download from YouTube on their own, so Clip Vortex asks a downloader for the file. It tries them in this order:</p>
+        <label class="field sm"><span>1 · Clip Vortex Helper on your computer <i class="hint">(most reliable — see README)</i></span>
+          <input id="helperUrl" type="text" placeholder="http://localhost:8000"></label>
+        <label class="field sm"><span>2 · Cobalt downloader API <i class="hint">(optional — your own instance, e.g. one-click deploy on Railway)</i></span>
+          <input id="cobaltUrl" type="text" placeholder="https://your-cobalt.up.railway.app"></label>
+        <label class="field sm"><span>Cobalt API key <i class="hint">(only if your instance needs one)</i></span>
+          <input id="cobaltKey" type="text" placeholder="optional"></label>
+        <button type="button" class="ghost" id="testDl">Test connection</button>
+      </details>
+    </div>
+
+    <div id="srcFile" hidden>
+      <div class="srcbox">
         <label class="drop" id="drop">
           <input id="file" type="file" accept="video/*,.mkv" hidden>
           <svg viewBox="0 0 24 24"><path d="M12 3l5 5h-3v6h-4V8H7zm-7 14h14v3H5z"/></svg>
           <span id="dropText">Drop a video here or <u>browse</u><br><small class="muted">MP4, MOV or WebM · podcasts, interviews, streams, vlogs</small></span>
         </label>
-        <p class="note" style="margin-top:12px"><b>Have a YouTube video?</b> Download the file first (for your own channel: YouTube Studio → Content → ⋮ → Download), then drop it here. Browsers can't fetch videos straight from YouTube.</p>
+        <video id="srcVideo" controls muted playsinline hidden></video>
       </div>
-      <video id="srcVideo" controls muted playsinline hidden></video>
     </div>
   </section>
 
@@ -346,8 +399,8 @@ function ask(text, buttons) {
 const drop = $("#drop"), fileIn = $("#file");
 ["dragenter", "dragover"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add("over"); }));
 ["dragleave", "drop"].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove("over"); }));
-drop.addEventListener("drop", (ev) => { const f = ev.dataTransfer.files[0]; if (f) loadFile(f); });
-fileIn.addEventListener("change", () => { if (fileIn.files[0]) loadFile(fileIn.files[0]); });
+drop.addEventListener("drop", (ev) => { const f = ev.dataTransfer.files[0]; if (f) { S.ytFileKey = null; loadFile(f); } });
+fileIn.addEventListener("change", () => { if (fileIn.files[0]) { S.ytFileKey = null; loadFile(fileIn.files[0]); } });
 
 function loadMeta(video, url) {
   return new Promise((resolve, reject) => {
@@ -380,6 +433,188 @@ async function loadFile(f) {
     $("#dropText").textContent = e.message;
   }
 }
+
+/* ================================================================ YouTube link + downloaders */
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch {} },
+};
+S.srcMode = "link"; S.yt = null; S.ytFileKey = null;
+$$(".tab").forEach((b) => b.addEventListener("click", () => {
+  $$(".tab").forEach((x) => x.classList.toggle("on", x === b));
+  S.srcMode = b.dataset.src;
+  $("#srcLink").hidden = S.srcMode !== "link";
+  $("#srcFile").hidden = S.srcMode !== "file";
+}));
+$("#helperUrl").value = store.get("cv_helper") ?? "http://localhost:8000";
+$("#cobaltUrl").value = store.get("cv_cobalt") || "";
+$("#cobaltKey").value = store.get("cv_cobalt_key") || "";
+[["#helperUrl", "cv_helper"], ["#cobaltUrl", "cv_cobalt"], ["#cobaltKey", "cv_cobalt_key"]].forEach(([sel, k]) =>
+  $(sel).addEventListener("change", () => { store.set(k, $(sel).value.trim()); checkHelper(); }));
+
+function parseYouTube(u) {
+  u = (u || "").trim();
+  if (!u) return null;
+  if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+  let url; try { url = new URL(u); } catch { return null; }
+  const host = url.hostname.replace(/^(www|m|music)\./, "");
+  let id = null, short = false;
+  if (host === "youtu.be") id = url.pathname.slice(1).split("/")[0];
+  else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (url.pathname === "/watch") id = url.searchParams.get("v");
+    else { const m = url.pathname.match(/^\/(shorts|live|embed|v)\/([^/?#]+)/); if (m) { id = m[2]; short = m[1] === "shorts"; } }
+  }
+  if (!id || !/^[\w-]{11}$/.test(id)) return null;
+  const t = parseInt(url.searchParams.get("t") || "0", 10) || 0;
+  return { id, short, t, url: `https://www.youtube.com/watch?v=${id}` };
+}
+
+let prevTimer = null;
+$("#ytUrl").addEventListener("input", () => { clearTimeout(prevTimer); prevTimer = setTimeout(updatePreview, 250); });
+$("#ytUrl").addEventListener("paste", () => setTimeout(updatePreview, 30));
+$("#pasteBtn").addEventListener("click", async () => {
+  try { const t = await navigator.clipboard.readText(); if (t) { $("#ytUrl").value = t.trim(); updatePreview(); return; } } catch {}
+  $("#ytUrl").focus(); toast("Press Ctrl+V (or long-press → Paste) to paste the link");
+});
+
+function updatePreview() {
+  const raw = $("#ytUrl").value.trim();
+  const err = $("#ytErr");
+  if (!raw) { err.hidden = true; $("#ytPrev").hidden = true; S.yt = null; return; }
+  const yt = parseYouTube(raw);
+  if (!yt) {
+    S.yt = null; $("#ytPrev").hidden = true; err.hidden = false;
+    err.textContent = /youtube\.com\/(@|channel|c\/|user)/i.test(raw)
+      ? "That's a channel link — open one of its videos and paste that video's link."
+      : "That doesn't look like a YouTube video link.";
+    return;
+  }
+  err.hidden = true;
+  if (S.yt && S.yt.id === yt.id) return;
+  S.yt = yt;
+  const fr = $("#ytFrame");
+  fr.className = "ytframe" + (yt.short ? " short" : "");
+  fr.innerHTML = `<div class="ph">Loading preview…</div>`;
+  if (inPreview) {
+    fr.innerHTML = `<div class="ph">▶ Video ${yt.id}<br><br>The video player preview shows on your own site — this Claude preview window blocks embedded players.</div>`;
+  } else {
+    const img = document.createElement("img");
+    img.src = `https://i.ytimg.com/vi/${yt.id}/hqdefault.jpg`; img.alt = "";
+    const ifr = document.createElement("iframe");
+    ifr.src = `https://www.youtube-nocookie.com/embed/${yt.id}?rel=0&modestbranding=1${yt.t ? "&start=" + yt.t : ""}`;
+    ifr.title = "YouTube video preview";
+    ifr.allow = "accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen";
+    ifr.allowFullscreen = true;
+    ifr.referrerPolicy = "strict-origin-when-cross-origin";
+    fr.innerHTML = ""; fr.append(img, ifr);
+  }
+  $("#ytTitle").textContent = "YouTube video";
+  $("#ytAuthor").textContent = "";
+  $("#ytOpen").href = yt.url;
+  $("#dlState").innerHTML = `<span class="muted">Ready — the video downloads automatically when you click <b>Generate clips</b>.</span>`;
+  $("#ytPrev").hidden = false;
+  loadTitle(yt.id);
+}
+async function loadTitle(id) {
+  if (inPreview) return;
+  const target = encodeURIComponent(`https://www.youtube.com/watch?v=${id}`);
+  for (const u of [`https://www.youtube.com/oembed?url=${target}&format=json`, `https://noembed.com/embed?url=${target}`]) {
+    try {
+      const j = await (await fetch(u, { signal: AbortSignal.timeout(6000) })).json();
+      if (j && j.title && S.yt && S.yt.id === id) { $("#ytTitle").textContent = j.title; $("#ytAuthor").textContent = j.author_name || ""; S.yt.title = j.title; S.yt.author = j.author_name || ""; return; }
+    } catch {}
+  }
+}
+
+async function fetchWithProgress(url, init, onProg) {
+  const r = await fetch(url, init);
+  if (!r.ok) {
+    let msg = ""; try { const j = await r.json(); msg = j.error || j.message || ""; } catch {}
+    throw new Error(msg || `server answered ${r.status}`);
+  }
+  const total = +r.headers.get("content-length") || 0;
+  const type = (r.headers.get("content-type") || "video/mp4").split(";")[0];
+  if (!r.body || !r.body.getReader) { const b = await r.blob(); onProg(b.size, b.size); return b; }
+  const reader = r.body.getReader(), parts = []; let got = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    parts.push(value); got += value.length; onProg(got, total);
+    if (S.cancel) { try { reader.cancel(); } catch {} throw new Error("__cancel"); }
+  }
+  if (!got) throw new Error("the download was empty");
+  return new Blob(parts, { type: type.startsWith("video/") || type.startsWith("audio/") ? type : "video/mp4" });
+}
+const cleanBase = (u) => (u || "").trim().replace(/\/+$/, "");
+
+async function helperHealth(base) {
+  const r = await fetch(`${base}/api/health`, { cache: "no-store", signal: AbortSignal.timeout(3500) });
+  const j = await r.json();
+  if (!j || !j.ok) throw new Error("not a Clip Vortex Helper");
+  return j;
+}
+async function viaHelper(base, yt, q, onProg) {
+  let h;
+  try { h = await helperHealth(base); } catch { throw new Error("not running (start it with run.bat / run.sh)"); }
+  if (!h.fetch) throw new Error("it's an old version — download the latest server-version folder");
+  if (!h.yt_dlp) throw new Error("yt-dlp isn't installed on it");
+  return fetchWithProgress(`${base}/api/fetch?url=${encodeURIComponent(yt.url)}&quality=${q}`, {}, onProg);
+}
+async function viaCobalt(base, key, yt, q, onProg) {
+  const headers = { Accept: "application/json", "Content-Type": "application/json" };
+  if (key) headers.Authorization = `Api-Key ${key}`;
+  let j;
+  try {
+    const r = await fetch(`${base}/`, { method: "POST", headers, signal: AbortSignal.timeout(60000),
+      body: JSON.stringify({ url: yt.url, videoQuality: String(q), youtubeVideoCodec: "h264", downloadMode: "auto", filenameStyle: "basic", alwaysProxy: true }) });
+    j = await r.json();
+  } catch (e) { throw new Error(`couldn't reach it (${e.message})`); }
+  if (j.status === "error") throw new Error((j.error && j.error.code) || "error");
+  if (j.status === "tunnel" || j.status === "redirect") return fetchWithProgress(j.url, {}, onProg);
+  throw new Error(`unexpected answer "${j.status}"`);
+}
+async function downloadYouTube(yt, q) {
+  const mb = (n) => (n / 1048576).toFixed(1);
+  const t0 = performance.now();
+  const onProg = (got, total) => {
+    const secs = (performance.now() - t0) / 1000, speed = got / 1048576 / Math.max(0.5, secs);
+    $("#sub").textContent = total
+      ? `Downloading… ${mb(got)} of ${mb(total)} MB (${speed.toFixed(1)} MB/s)`
+      : `Downloading… ${mb(got)} MB (${speed.toFixed(1)} MB/s)`;
+    if (total) $("#fill").style.width = `${Math.min(2, (2 * got) / total)}%`;
+  };
+  const tried = [];
+  const helper = cleanBase($("#helperUrl").value), cobalt = cleanBase($("#cobaltUrl").value);
+  if (inPreview) throw new Error("This Claude preview window blocks all downloads from other websites, so YouTube links can't work here. Open Clip Vortex on your GitHub site (or use “Upload video file”).");
+  if (helper) {
+    stage("Downloading the video with your Clip Vortex Helper", 0.5);
+    $("#sub").textContent = "Helper is fetching the video from YouTube (this takes a moment before the progress starts)…";
+    try { return await viaHelper(helper, yt, q, onProg); }
+    catch (e) { if (e.message === "__cancel") throw e; tried.push(`• Helper (${helper}): ${e.message}`); log("helper failed: " + e.message); }
+  }
+  if (cobalt) {
+    stage("Downloading the video with your Cobalt downloader", 0.5);
+    try { return await viaCobalt(cobalt, $("#cobaltKey").value.trim(), yt, q, onProg); }
+    catch (e) { if (e.message === "__cancel") throw e; tried.push(`• Cobalt (${cobalt}): ${e.message}`); log("cobalt failed: " + e.message); }
+  } else tried.push("• Cobalt downloader: not set up");
+  throw new Error("Couldn't download this video automatically.\n" + tried.join("\n") +
+    "\n\nFix: start the Clip Vortex Helper on your computer (double-click run.bat in the server-version folder, keep it open), then click Generate again. Or download the video yourself and use “Upload video file”.");
+}
+async function checkHelper() {
+  const chip = $("#helperChip");
+  if (inPreview) { chip.textContent = "· not available in this preview"; return false; }
+  const base = cleanBase($("#helperUrl").value);
+  if (!base) { chip.textContent = ""; return false; }
+  try { const h = await helperHealth(base); chip.innerHTML = h.fetch ? `· <span class="ok">Helper connected ✓</span>` : `· <span class="bad">Helper is outdated</span>`; return !!h.fetch; }
+  catch { chip.innerHTML = `· <span class="muted">Helper not running</span>`; return false; }
+}
+$("#testDl").addEventListener("click", async (e) => {
+  const b = e.currentTarget; b.disabled = true; const out = [];
+  out.push((await checkHelper()) ? "Helper: connected ✓" : "Helper: not reachable");
+  const cobalt = cleanBase($("#cobaltUrl").value);
+  if (cobalt) { try { const j = await (await fetch(`${cobalt}/`, { signal: AbortSignal.timeout(5000) })).json(); out.push(j.cobalt ? `Cobalt: connected ✓ (v${j.cobalt.version})` : "Cobalt: answered, but doesn't look like cobalt"); } catch (er) { out.push(`Cobalt: not reachable (${er.message})`); } }
+  toast(out.join(" · ")); b.disabled = false;
+});
 
 /* ================================================================ clips form */
 $("#count").addEventListener("input", () => ($("#countOut").textContent = $("#count").value));
@@ -916,7 +1151,8 @@ function showForm() { $("#progress").hidden = true; $("#form").hidden = false; $
 /* ================================================================ main job */
 $("#form").addEventListener("submit", async (ev) => {
   ev.preventDefault(); showErr("");
-  if (!S.file || !S.meta) return showErr("Add a video first (step 1).");
+  if (S.srcMode === "link") { if (!S.yt) { $("#ytUrl").focus(); return showErr("Paste a YouTube video link in step 1 (or switch to “Upload video file”)."); } }
+  else if (!S.file || !S.meta) return showErr("Add a video first (step 1).");
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return showErr("This browser can't record video. Use Chrome, Edge, Firefox or Safari (latest).");
   if (S.captions && S.capSrc === "srt" && !S.srtWords) return showErr("Choose your .srt / .vtt subtitle file, or switch to Auto captions.");
   const [minL, maxL] = lengthRange();
@@ -924,7 +1160,7 @@ $("#form").addEventListener("submit", async (ev) => {
     n: +$("#count").value, minL, maxL, exact: $("#exact").checked,
     captions: S.captions, capSrc: S.capSrc, language: $("#language").value, task: $("#task").value,
     style: { ...S.style }, aspect: S.aspect, crop: S.crop, cropPos: +$("#cropPos").value / 100,
-    quality: +$("#quality").value, silence: $("#silence").checked, progressBar: $("#pbar").checked, mime: pickMime(),
+    quality: +$("#quality").value, dlQuality: +$("#dlQuality").value, silence: $("#silence").checked, progressBar: $("#pbar").checked, mime: pickMime(),
   };
   // create/resume the audio context inside the click, so browsers allow sound capture
   try { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume().catch(() => {}); } catch {}
@@ -936,11 +1172,25 @@ $("#form").addEventListener("submit", async (ev) => {
   try { await runJob(opts); }
   catch (e) {
     if (e.message === "__cancel") { log("cancelled"); if (!S.clips.length) { showForm(); showErr("Cancelled."); } else $("#progress").hidden = true; }
-    else { console.error(e); $("#stage").textContent = "Something went wrong"; $("#sub").textContent = e.message || String(e); log("ERROR: " + (e.stack || e.message)); $("#cancel").textContent = "Back"; $("#cancel").onclick = () => { $("#cancel").textContent = "Cancel"; $("#cancel").onclick = () => { S.cancel = true; }; showForm(); }; return; }
+    else { console.error(e); $("#stage").textContent = "Something went wrong"; $("#sub").textContent = e.message || String(e); $("#sub").style.whiteSpace = "pre-line"; log("ERROR: " + (e.stack || e.message)); $("#cancel").textContent = "Back"; $("#cancel").onclick = () => { $("#cancel").textContent = "Cancel"; $("#cancel").onclick = () => { S.cancel = true; }; showForm(); }; return; }
   } finally { S.running = false; }
 });
 
 async function runJob(o) {
+  if (S.srcMode === "link") {
+    const key = `${S.yt.id}@${o.dlQuality}`;
+    if (S.ytFileKey !== key || !S.file) {
+      const blob = await downloadYouTube(S.yt, o.dlQuality);
+      const ext = blob.type.includes("webm") ? "webm" : "mp4";
+      const name = (S.yt.title || S.yt.id).replace(/[\\/:*?"<>|]+/g, " ").slice(0, 80) + "." + ext;
+      await loadFile(new File([blob], name, { type: blob.type || "video/mp4" }));
+      if (!S.file || !S.meta) throw new Error("The downloaded file couldn't be opened in this browser. Try another quality, or download it yourself and use “Upload video file”.");
+      S.ytFileKey = key;
+      log(`downloaded ${(blob.size / 1048576).toFixed(1)} MB`);
+      $("#dlState").innerHTML = `<span class="ok">✓ Downloaded (${(blob.size / 1048576).toFixed(0)} MB) — reused for your next batch.</span>`;
+      $("#sub").textContent = "Keep this tab open and visible while clips are made.";
+    } else log("using the already-downloaded video");
+  }
   const D = S.meta.duration;
   log(`video ${fmt(D)} ${S.meta.width}x${S.meta.height}, recorder: ${o.mime || "default"}`);
   // 1. audio
@@ -1006,7 +1256,7 @@ async function runJob(o) {
     const n = i + 1;
     const title = makeTitle(c.words, c.s, c.e);
     const tags = c.words.length ? hashtags(c.words, c.s, c.e) : "#shorts #viral #fyp";
-    const clip = { n, blob, start: c.s, end: c.e, duration: dur, score: Math.round(c.score * 100), title, post: `${title || S.file.name.replace(/\.\w+$/, "")}\n\n${tags}\n`, srt: c.words.length && o.captions ? srt(c.words, c.s, c.segs) : null, fileName: `clip_${String(n).padStart(2, "0")}.${ext}` };
+    const clip = { n, blob, start: c.s, end: c.e, duration: dur, score: Math.round(c.score * 100), title, post: `${title || S.file.name.replace(/\.\w+$/, "")}\n\n${tags}${S.srcMode === "link" && S.yt && S.yt.author ? `\n\nCredit: ${S.yt.author}` : ""}\n`, srt: c.words.length && o.captions ? srt(c.words, c.s, c.segs) : null, fileName: `clip_${String(n).padStart(2, "0")}.${ext}` };
     S.clips.push(clip); addResult(clip);
     log(`clip ${n}: ${fmt(c.s)}–${fmt(c.e)}, ${(blob.size / 1048576).toFixed(1)} MB`);
   }
@@ -1019,6 +1269,7 @@ async function runJob(o) {
 /* ================================================================ boot */
 renderPresets();
 requestAnimationFrame(drawPreviewLoop);
+checkHelper();
 if (inPreview) $(".pill span").textContent = "Preview · runs in your browser";
 document.fonts && document.fonts.load('700 40px "Poppins"').catch(() => {});
 ["Anton", "Archivo Black", "Montserrat"].forEach((f) => document.fonts && document.fonts.load(`700 40px "${f}"`).catch(() => {}));
