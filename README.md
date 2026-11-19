@@ -40,9 +40,20 @@ After about a minute your site is live at `https://<your-username>.github.io/cli
 
 ---
 
-## 🔗 YouTube links: turn on the Clip Vortex Helper (one time, about 5 minutes)
+## ⚡ Turbo mode: the Clip Vortex Helper (strongly recommended)
 
-A website can't download from YouTube by itself; browsers and YouTube block it. Free public "downloader APIs" are blocked by YouTube too. So Clip Vortex uses a small helper that runs **on your own computer** and downloads the video for the website.
+The website works on its own (**browser mode**), but browsers are slow at video. They have to download the whole video and record clips in real time. For anything longer than a few minutes, start the free **Clip Vortex Helper** on your computer. The site detects it automatically and switches to **⚡ Turbo mode**:
+
+| | Browser mode | ⚡ Turbo mode |
+|---|---|---|
+| YouTube links | – | ✅ video, **channel** and playlist links |
+| Downloads the whole video | yes | **no**: it reads only the 30-second parts it needs, straight from YouTube |
+| Finding the best moments | listens with AI in the browser | uses YouTube's **"Most replayed"** data and YouTube's **own captions** (instant even for 10 hours), with AI only as a backup |
+| Making clips | real time, one by one | many at once, uses all CPU cores, plus your **graphics card's video encoder** if it has one |
+| Face tracking | – | ✅ |
+| Test result: **40 × 30 s clips from a 10-hour stream** | not realistic | **≈ 2–6 minutes** (on a 2-core test machine) |
+
+Speed tips: choose **720p output** (about 2× faster) and **Speed: Fastest**. In Turbo mode you can switch to another tab while it works, and clips appear as soon as each one is ready.
 
 **Windows**
 1. Install **Python** from python.org (tick *"Add python.exe to PATH"*).

@@ -121,6 +121,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
 .dlset{margin-top:14px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
 .dlset summary{margin:0;color:var(--text);font-weight:600}
 .ok{color:var(--ok)}.bad{color:var(--danger)}
+.turbo{margin:-4px 0 16px}
+.turbo-off{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.turbo-off .ghost{padding:6px 12px;margin-left:auto}
+.turbo-on{background:linear-gradient(90deg,rgba(255,224,0,.12),rgba(255,224,0,.03));border:1px solid rgba(255,224,0,.45);border-radius:12px;padding:12px 14px;font-size:14px}
 @media(max-width:760px){.ytprev{grid-template-columns:1fr}}
 @media(max-width:760px){.cap-layout,.srcbox,.progress-layout{grid-template-columns:1fr}.phone{position:relative;top:0;width:210px;margin:0 auto}main,.top{padding-left:14px;padding-right:14px}.card{padding:16px}.live{max-width:200px;margin:0 auto}}
 </style>
@@ -134,7 +138,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
 <main>
 <section class="hero" id="hero">
   <h1>Long video in.<br><span class="hl">Ready-to-post clips</span> out.</h1>
-  <p>Paste a YouTube link or drop in a video. Clip Vortex finds the best moments, reframes them for Shorts, Reels &amp; TikTok, and adds captions styled your way — all on your device.</p>
+  <p>Paste a YouTube link or drop in a video — even a 10-hour stream. Clip Vortex finds the best moments, reframes them for Shorts, Reels &amp; TikTok, and adds captions styled your way — all on your device.</p>
 </section>
 
 <form id="form" autocomplete="off">
@@ -146,12 +150,26 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
       <button type="button" class="tab" data-src="file">Upload video file</button>
     </div>
 
+    <div class="turbo" id="turboBar">
+      <div class="turbo-off" id="turboOff">
+        <b>🐢 Browser mode</b> — fine for short videos, slow for long ones.
+        <span class="muted">Start the free <b>Clip Vortex Helper</b> on this computer for <b>⚡ Turbo mode</b>: 40 clips from a 10-hour stream in minutes, channel links, face tracking.</span>
+        <button type="button" class="ghost" id="turboHow">How?</button>
+      </div>
+      <div class="turbo-on" id="turboOnBox" hidden>
+        <label class="tg"><input type="checkbox" id="turboOn" checked><span class="sw"></span><span><b>⚡ Turbo mode</b> — your computer's helper does all the work <span class="muted" id="turboInfo"></span></span></label>
+      </div>
+    </div>
     <div id="srcLink">
       <div class="linkrow">
         <input id="ytUrl" type="text" inputmode="url" placeholder="Paste a YouTube link — youtube.com/watch?v=…  ·  youtu.be/…  ·  /shorts/…">
         <button type="button" class="ghost" id="pasteBtn">Paste</button>
       </div>
       <p class="err" id="ytErr" hidden></p>
+      <div class="note" id="chanBox" hidden style="margin-top:12px">
+        <b id="chanTitle">Channel</b><br><span class="muted">⚡ Turbo will scan this channel's latest videos and pick the best moments across all of them.</span>
+        <label class="field sm" style="margin:10px 0 0;max-width:220px"><span>Latest videos to scan</span><input id="videos" type="number" min="1" max="15" value="3"></label>
+      </div>
       <div class="ytprev" id="ytPrev" hidden>
         <div class="ytframe" id="ytFrame"></div>
         <div class="ytinfo">
@@ -292,6 +310,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
     <div class="field"><span>Framing</span>
       <div class="chips" id="crops">
         <button type="button" class="chip on" data-v="crop">Crop to fill</button>
+        <button type="button" class="chip" data-v="face">Follow the speaker's face ⚡</button>
         <button type="button" class="chip" data-v="blur">Fit with blurred background</button>
       </div>
     </div>
@@ -299,7 +318,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
       <input id="cropPos" type="range" min="0" max="100" value="50">
     </div>
     <div class="row">
-      <label class="field sm"><span>Output quality</span><select id="quality"><option value="1080">1080p (best)</option><option value="720">720p (faster, smaller)</option></select></label>
+      <label class="field sm"><span>Output quality</span><select id="quality"><option value="1080">1080p (best)</option><option value="720">720p (about 2× faster)</option></select></label>
+      <label class="field sm"><span>Speed ⚡ <i class="hint">(Turbo)</i></span><select id="speed"><option value="fast" selected>Fastest</option><option value="balanced">Balanced</option><option value="best">Best quality (slower)</option></select></label>
     </div>
     <div class="toggles">
       <label class="tg"><input type="checkbox" id="silence"><span class="sw"></span><span>Cut out pauses (jump cuts)</span></label>
@@ -381,7 +401,11 @@ function stage(text, pct) {
   if (text) { $("#stage").textContent = text; log(text); }
   if (pct != null) $("#fill").style.width = `${clamp(pct, 0, 100)}%`;
 }
-function fmt(s) { s = Math.round(s || 0); return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s}s`; }
+function fmt(s) {
+  s = Math.round(s || 0);
+  if (s >= 3600) return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  return s >= 60 ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `${s}s`;
+}
 function toast(msg) {
   const t = document.createElement("div"); t.className = "toast"; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 2600);
@@ -456,7 +480,8 @@ $("#helperUrl").value = store.get("cv_helper") ?? "http://localhost:8000";
 $("#cobaltUrl").value = store.get("cv_cobalt") || "";
 $("#cobaltKey").value = store.get("cv_cobalt_key") || "";
 [["#helperUrl", "cv_helper"], ["#cobaltUrl", "cv_cobalt"], ["#cobaltKey", "cv_cobalt_key"]].forEach(([sel, k]) =>
-  $(sel).addEventListener("change", () => { store.set(k, $(sel).value.trim()); checkHelper(); }));
+  $(sel).addEventListener("change", () => { store.set(k, $(sel).value.trim()); checkHelper();
+setInterval(() => { if (!S.running && !inPreview) checkHelper(); }, 8000); }));
 
 function parseYouTube(u) {
   u = (u || "").trim();
@@ -469,6 +494,11 @@ function parseYouTube(u) {
   else if (host === "youtube.com" || host === "youtube-nocookie.com") {
     if (url.pathname === "/watch") id = url.searchParams.get("v");
     else { const m = url.pathname.match(/^\/(shorts|live|embed|v)\/([^/?#]+)/); if (m) { id = m[2]; short = m[1] === "shorts"; } }
+  }
+  if (!id && (host === "youtube.com")) {
+    const m = url.pathname.match(/^\/(@[^/]+|channel\/[^/]+|c\/[^/]+|user\/[^/]+)/);
+    if (m) return { channel: true, name: decodeURIComponent(m[1].replace(/^(channel|c|user)\//, "")), url: `https://www.youtube.com/${m[1]}/videos` };
+    if (url.pathname === "/playlist" && url.searchParams.get("list")) return { channel: true, name: "Playlist", url: u };
   }
   if (!id || !/^[\w-]{11}$/.test(id)) return null;
   const t = parseInt(url.searchParams.get("t") || "0", 10) || 0;
@@ -488,14 +518,20 @@ function updatePreview() {
   const err = $("#ytErr");
   if (!raw) { err.hidden = true; $("#ytPrev").hidden = true; S.yt = null; return; }
   const yt = parseYouTube(raw);
+  $("#chanBox").hidden = true;
   if (!yt) {
     S.yt = null; $("#ytPrev").hidden = true; err.hidden = false;
-    err.textContent = /youtube\.com\/(@|channel|c\/|user)/i.test(raw)
-      ? "That's a channel link — open one of its videos and paste that video's link."
-      : "That doesn't look like a YouTube video link.";
+    err.textContent = "That doesn't look like a YouTube link.";
     return;
   }
   err.hidden = true;
+  if (yt.channel) {
+    S.yt = yt; $("#ytPrev").hidden = true;
+    $("#chanTitle").textContent = `${yt.name} — latest videos`;
+    $("#chanBox").hidden = false;
+    if (!turboReady()) { err.hidden = false; err.textContent = "Channel and playlist links need ⚡ Turbo mode (the Clip Vortex Helper). Start it, or paste a single video's link."; }
+    return;
+  }
   if (S.yt && S.yt.id === yt.id) return;
   S.yt = yt;
   const fr = $("#ytFrame");
@@ -606,14 +642,30 @@ async function downloadYouTube(yt, q) {
   throw new Error("Couldn't download this video automatically.\n" + tried.join("\n") +
     "\n\nFix: start the Clip Vortex Helper on your computer (double-click run.bat in the server-version folder, keep it open), then click Generate again. Or download the video yourself and use “Upload video file”.");
 }
+S.helperInfo = null;
+function turboReady() { return !!(S.helperInfo && S.helperInfo.turbo && !inPreview); }
+function turboActive() { return turboReady() && $("#turboOn").checked; }
+function paintTurbo() {
+  const on = turboReady();
+  $("#turboOff").hidden = on; $("#turboOnBox").hidden = !on;
+  const cnt = $("#count"); cnt.max = on ? Math.min(100, S.helperInfo.max_clips || 100) : 20;
+  if (+cnt.value > +cnt.max) cnt.value = cnt.max;
+  $("#countOut").textContent = cnt.value;
+  if (!inPreview) $(".pill span").textContent = on ? "⚡ Turbo · runs on your computer · nothing uploaded" : "Runs in your browser · nothing uploaded";
+  if (on) $("#turboInfo").textContent = `· ${S.helperInfo.cpus || "?"} CPU cores${S.helperInfo.whisper ? "" : " · speech AI not installed (YouTube captions still work)"}`;
+  if (S.yt && S.yt.channel) updatePreviewForce();
+}
+function updatePreviewForce() { const y = S.yt; S.yt = null; updatePreview(); if (!S.yt) S.yt = y; }
+$("#turboHow").addEventListener("click", () => { const d = $("#dlSet"); d.open = true; $("#helperHelp").hidden = false; d.scrollIntoView({ behavior: "smooth", block: "center" }); });
 async function checkHelper() {
   const chip = $("#helperChip");
   if (inPreview) { chip.textContent = "· not available in this preview"; return false; }
   const base = cleanBase($("#helperUrl").value);
   if (!base) { chip.textContent = ""; return false; }
-  try { const h = await helperHealth(base); $("#helperHelp").hidden = true; chip.innerHTML = h.fetch ? `· <span class="ok">Helper connected ✓</span>` : `· <span class="bad">Helper is outdated</span>`; return !!h.fetch; }
+  try { const h = await helperHealth(base); S.helperInfo = h; paintTurbo(); $("#helperHelp").hidden = true; chip.innerHTML = h.fetch ? `· <span class="ok">Helper connected ✓</span>` : `· <span class="bad">Helper is outdated</span>`; return !!h.fetch; }
   catch {
     chip.innerHTML = `· <span class="muted">Helper not running</span>`;
+    if (S.helperInfo) { S.helperInfo = null; paintTurbo(); }
     $("#helperHelp").hidden = false;
     $("#healthLink").href = $("#healthLink").textContent = `${base}/api/health`;
     $("#helperSite").href = base; $("#helperSite b").textContent = base;
@@ -1054,7 +1106,7 @@ async function renderClip(clip, opts, onProgress) {
   const live = $("#liveBox"); live.innerHTML = ""; live.appendChild(canvas); live.hidden = false;
 
   const VW = S.meta.width, VH = S.meta.height, r = TW / TH;
-  let mode = opts.crop;
+  let mode = opts.crop === "face" ? "crop" : opts.crop;
   if (VW / VH < r - 0.01 && mode === "crop") mode = "blur";
   const cw = Math.min(VW, VH * r), chh = Math.min(VH, VW / r);
   const cx = (VW - cw) * opts.cropPos, cy = (VH - chh) / 2;
@@ -1175,20 +1227,24 @@ function addResult(c) {
   const el = document.createElement("article"); el.className = "clip";
   el.innerHTML = `<div class="v"><video controls playsinline preload="metadata"></video><span class="score"></span></div>
     <div class="meta"><h3></h3><p class="muted"></p><div class="btns"><button class="btn dl" type="button">Download</button><button class="ghost cp" type="button">Copy caption</button><button class="ghost srt" type="button">.srt</button></div></div>`;
-  const v = $("video", el); v.src = URL.createObjectURL(c.blob);
+  const v = $("video", el); v.src = c.url || URL.createObjectURL(c.blob);
+  if (c.poster) v.poster = c.poster;
   $(".score", el).textContent = `Score ${c.score} · ${fmt(c.duration)}`;
   $("h3", el).textContent = c.title || `Clip ${c.n}`;
   $("p", el).textContent = `From ${fmt(c.start)} to ${fmt(c.end)} of the original`;
-  $(".dl", el).onclick = () => saveFile(c.fileName, c.blob);
+  $(".dl", el).onclick = () => (c.dl ? navDownload(c.dl) : saveFile(c.fileName, c.blob));
   $(".cp", el).onclick = (e) => copyText(c.post, e.currentTarget);
   // the preview's download allowlist has no .srt, so it saves as .txt there
-  if (c.srt) $(".srt", el).onclick = () => saveFile(c.fileName.replace(/\.\w+$/, inPreview ? "_subtitles.txt" : ".srt"), new Blob([c.srt], { type: "text/plain" }));
+  if (c.srtUrl) $(".srt", el).onclick = () => navDownload(c.srtUrl);
+  else if (c.srt) $(".srt", el).onclick = () => saveFile(c.fileName.replace(/\.\w+$/, inPreview ? "_subtitles.txt" : ".srt"), new Blob([c.srt], { type: "text/plain" }));
   else $(".srt", el).remove();
   grid.appendChild(el);
   $("#rcount").textContent = `(${S.clips.length})`;
   $("#results").hidden = false;
 }
+function navDownload(url) { const a = document.createElement("a"); a.href = url; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove(); }
 $("#zipBtn").onclick = async (e) => {
+  if (S.turboJob) return navDownload(`${S.turboJob.base}/api/jobs/${S.turboJob.id}/zip`);
   const b = e.currentTarget; b.disabled = true; b.textContent = "Zipping…";
   try {
     const files = [];
@@ -1196,7 +1252,7 @@ $("#zipBtn").onclick = async (e) => {
     await saveFile("clipvortex_clips.zip", await makeZip(files));
   } finally { b.disabled = false; b.textContent = "Download all (.zip)"; }
 };
-$("#again").onclick = () => { $("#results").hidden = true; $("#grid").innerHTML = ""; S.clips = []; showForm(); };
+$("#again").onclick = () => { $("#results").hidden = true; $("#grid").innerHTML = ""; S.clips = []; S.turboJob = null; showForm(); };
 $("#cancel").onclick = () => { S.cancel = true; $("#stage").textContent = "Cancelling…"; const v = $("#work"); v.pause(); };
 function showForm() { $("#progress").hidden = true; $("#form").hidden = false; $("#hero").hidden = false; }
 
@@ -1205,6 +1261,9 @@ $("#form").addEventListener("submit", async (ev) => {
   ev.preventDefault(); showErr("");
   if (S.srcMode === "link") { if (!S.yt) { $("#ytUrl").focus(); return showErr("Paste a YouTube video link in step 1 (or switch to “Upload video file”)."); } }
   else if (!S.file || !S.meta) return showErr("Add a video first (step 1).");
+  if (S.srcMode === "link" && S.yt.channel && !turboActive()) return showErr("Channel and playlist links need ⚡ Turbo mode. Start the Clip Vortex Helper, or paste a single video's link.");
+  if (S.captions && S.capSrc === "srt" && !S.srtWords) return showErr("Choose your .srt / .vtt subtitle file, or switch to Auto captions.");
+  if (turboActive()) return startTurbo();
   if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return showErr("This browser can't record video. Use Chrome, Edge, Firefox or Safari (latest).");
   if (S.captions && S.capSrc === "srt" && !S.srtWords) return showErr("Choose your .srt / .vtt subtitle file, or switch to Auto captions.");
   const [minL, maxL] = lengthRange();
@@ -1227,6 +1286,86 @@ $("#form").addEventListener("submit", async (ev) => {
     else { console.error(e); $("#stage").textContent = "Something went wrong"; $("#sub").textContent = e.message || String(e); $("#sub").style.whiteSpace = "pre-line"; log("ERROR: " + (e.stack || e.message)); $("#cancel").textContent = "Back"; $("#cancel").onclick = () => { $("#cancel").textContent = "Cancel"; $("#cancel").onclick = () => { S.cancel = true; }; showForm(); }; return; }
   } finally { S.running = false; }
 });
+
+/* ================================================================ ⚡ Turbo: the helper does everything */
+const LANG_CODES = { english: "en", hindi: "hi", urdu: "ur", bengali: "bn", tamil: "ta", telugu: "te", marathi: "mr", gujarati: "gu", punjabi: "pa", spanish: "es", portuguese: "pt", french: "fr", german: "de", arabic: "ar", indonesian: "id", japanese: "ja", korean: "ko", russian: "ru" };
+function uploadToHelper(base, file) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `${base}/api/upload?filename=${encodeURIComponent(file.name)}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) { $("#sub").textContent = `Handing the video to the helper… ${Math.round((e.loaded / e.total) * 100)}%`; $("#fill").style.width = `${(2 * e.loaded) / e.total}%`; } };
+    xhr.onload = () => { let d = {}; try { d = JSON.parse(xhr.responseText); } catch {} xhr.status < 300 ? resolve(d) : reject(new Error(d.error || `upload failed (${xhr.status})`)); };
+    xhr.onerror = () => reject(new Error("couldn't reach the helper"));
+    xhr.send(file);
+  });
+}
+async function startTurbo() {
+  const base = cleanBase($("#helperUrl").value);
+  const [minL, maxL] = lengthRange();
+  S.cancel = false; S.running = true; S.clips = []; S.turboJob = null;
+  $("#grid").innerHTML = ""; $("#results").hidden = true; $("#log").textContent = ""; $("#warns").hidden = true;
+  $("#form").hidden = true; $("#hero").hidden = true; $("#progress").hidden = false; $("#liveBox").hidden = true; $("#ask").hidden = true;
+  $("#sub").style.whiteSpace = ""; $("#sub").textContent = "⚡ Turbo mode — your computer is doing the work. You can switch tabs.";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  const t0 = performance.now();
+  try {
+    let source;
+    if (S.srcMode === "link") source = { type: "youtube", url: S.yt.url };
+    else { stage("Handing your video to the helper", 1); const up = await uploadToHelper(base, S.file); source = { type: "upload", upload_id: up.upload_id, name: up.name || S.file.name }; }
+    const crop = S.crop === "blur" ? "blur" : S.crop === "face" ? "face" : "center";
+    const body = {
+      source, num_clips: +$("#count").value, min_len: minL, max_len: maxL, exact_length: $("#exact").checked,
+      videos_to_scan: +$("#videos").value || 3, quality: String($("#dlQuality").value), out_quality: String($("#quality").value),
+      captions: S.captions, caption_style: { ...S.style, preset: S.preset },
+      caption_source: S.capSrc === "srt" ? "words" : "auto", words: S.capSrc === "srt" && S.captions ? S.srtWords : undefined,
+      language: LANG_CODES[$("#language").value] || "auto", translate: $("#task").value === "translate", whisper_model: "base",
+      aspect: S.aspect, crop_mode: crop, crop_pos: +$("#cropPos").value / 100,
+      remove_silence: $("#silence").checked, progress_bar: $("#pbar").checked, normalize_audio: true, speed: $("#speed").value,
+    };
+    stage("Starting ⚡ Turbo", 2);
+    const r = await fetch(`${base}/api/jobs`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const job = await r.json();
+    if (!r.ok) throw new Error(job.error || `helper answered ${r.status}`);
+    S.turboJob = { base, id: job.id };
+    let shownN = 0, cancelSent = false, fails = 0;
+    for (;;) {
+      await sleep(1000);
+      if (S.cancel && !cancelSent) { cancelSent = true; fetch(`${base}/api/jobs/${job.id}/cancel`, { method: "POST" }).catch(() => {}); }
+      let j;
+      try { j = await (await fetch(`${base}/api/jobs/${job.id}`, { cache: "no-store" })).json(); fails = 0; }
+      catch { if (++fails > 20) throw new Error("Lost connection to the helper. Is its window still open?"); continue; }
+      $("#stage").textContent = j.status === "queued" ? "Waiting for the helper…" : j.stage;
+      $("#fill").style.width = `${Math.max(2, j.progress)}%`;
+      $("#log").textContent = j.logs.join("\n");
+      const secs = Math.round((performance.now() - t0) / 1000);
+      $("#sub").textContent = `⚡ Turbo · ${fmt(secs)} elapsed${j.total_clips ? ` · ${j.clips.length} of ${j.total_clips} clips ready` : ""} · you can switch tabs`;
+      for (const c of j.clips.slice(shownN)) {
+        const f = (n, dl) => `${base}/api/jobs/${job.id}/files/${n}${dl ? "?download=1" : ""}`;
+        const clip = { n: c.rank, url: f(c.video), poster: f(c.thumb), dl: f(c.video, true), srtUrl: c.srt ? f(c.srt, true) : null,
+          start: c.start, end: c.end, duration: c.duration, score: c.score, title: c.title, post: c.post_text, fileName: c.video };
+        S.clips.push(clip); addResult(clip);
+      }
+      shownN = j.clips.length;
+      $("#zipBtn").hidden = j.status !== "done";
+      if (j.status === "done" || j.status === "cancelled") {
+        S.warnings = j.warnings || [];
+        break;
+      }
+      if (j.status === "error") throw new Error(j.error || "The helper hit an error.");
+    }
+    $("#progress").hidden = true;
+    if (!S.clips.length) { showForm(); showErr(S.cancel ? "Cancelled." : "No clips were made."); return; }
+    const wEl = $("#warns"); wEl.hidden = !S.warnings.length; wEl.innerHTML = ""; S.warnings.forEach((w) => { const d = document.createElement("div"); d.textContent = "⚠ " + w; wEl.appendChild(d); });
+    $("#zipBtn").hidden = false;
+    log(`⚡ ${S.clips.length} clips in ${fmt((performance.now() - t0) / 1000)}`);
+    $("#rcount").textContent = `(${S.clips.length} · made in ${fmt((performance.now() - t0) / 1000)})`;
+    $("#results").scrollIntoView({ behavior: "smooth" });
+  } catch (e) {
+    console.error(e);
+    $("#stage").textContent = "Something went wrong"; $("#sub").style.whiteSpace = "pre-line"; $("#sub").textContent = e.message || String(e);
+    $("#cancel").textContent = "Back"; $("#cancel").onclick = () => { $("#cancel").textContent = "Cancel"; $("#cancel").onclick = () => { S.cancel = true; $("#stage").textContent = "Cancelling…"; }; showForm(); };
+  } finally { S.running = false; }
+}
 
 async function runJob(o) {
   if (S.srcMode === "link") {
