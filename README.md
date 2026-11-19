@@ -55,7 +55,15 @@ A website can't download from YouTube by itself; browsers and YouTube block it. 
 3. Open the `server-version` folder and **double-click `run.bat`**. Leave that black window open while you use the site. The first start installs things and takes a few minutes.
 4. Open your Clip Vortex site. **⚙ Download settings** should say **"Helper connected ✓"**. If Chrome asks to allow access to devices on your local network, click **Allow**.
 
-**Mac / Linux:** `brew install ffmpeg deno python` (Mac), then run `./run.sh` inside `server-version`.
+**Linux (Ubuntu / Debian / Mint): one command.** Open a terminal in the `server-version` folder (right-click inside the folder → *Open in Terminal*) and run:
+```
+bash install-linux.sh
+```
+It installs everything, then starts the helper. Next time, just run `./run.sh` in that folder.
+
+**Mac:** `brew install ffmpeg deno python`, then run `./run.sh` inside `server-version`.
+
+While the helper runs you can also simply open **http://localhost:8000**. That's Clip Vortex served by the helper itself, already connected.
 
 Now just paste a link and click **Generate clips**. The helper downloads the video and the website makes the clips.
 
@@ -67,7 +75,7 @@ Now just paste a link and click **Generate clips**. The helper downloads the vid
 
 - Clips are recorded in **real time** (a 30-second clip takes about 30 seconds). **Keep the tab open and visible** while it works.
 - Best browsers are **Chrome or Edge** on a computer. They give MP4 (H.264) files that upload anywhere.
-- Auto captions are fastest on browsers with WebGPU (recent Chrome / Edge).
+- Auto captions use your graphics card (WebGPU) when the browser supports it, and otherwise switch to the CPU automatically. On the CPU, the "Listening to moment…" step takes longer, but it works.
 - Very long or huge videos (over ~1.5 GB) can run out of memory. Pick 720p or 480p download quality for long podcasts.
 - The YouTube link must be a single video, not a channel or playlist.
 

@@ -853,9 +853,17 @@ function asrWorker() {
           env.allowLocalModels = false;
           const opts = { dtype: { encoder_model: "fp32", decoder_model_merged: "q4" },
             progress_callback: (p) => { if (p.status === "progress") self.postMessage({ type: "progress", file: p.file, progress: p.progress }); } };
+          // Use the graphics card only if the browser really has a working one; otherwise the CPU (always works).
           let device = "wasm";
-          if (m.webgpu) { try { pipe = await pipeline("automatic-speech-recognition", m.model, { ...opts, device: "webgpu" }); device = "webgpu"; } catch (err) { pipe = null; } }
-          if (!pipe) pipe = await pipeline("automatic-speech-recognition", m.model, { ...opts, device: "wasm" });
+          if (m.tryGpu && self.navigator && self.navigator.gpu) {
+            try { const ad = await self.navigator.gpu.requestAdapter(); if (ad) device = "webgpu"; } catch (err) {}
+          }
+          if (device === "webgpu") {
+            try { pipe = await pipeline("automatic-speech-recognition", m.model, { ...opts, device: "webgpu" }); }
+            catch (err) { self.postMessage({ type: "gpufail", id: m.id, message: String((err && err.message) || err) }); return; }
+          } else {
+            pipe = await pipeline("automatic-speech-recognition", m.model, { ...opts, device: "wasm" });
+          }
           self.postMessage({ type: "loaded", id: m.id, device });
         } else if (m.type === "run") {
           const o = { return_timestamps: "word", task: m.task };
@@ -875,18 +883,42 @@ function asrWorker() {
   };
   w.onerror = (e) => { Object.values(waits).forEach((p) => p.reject(new Error(e.message || "speech worker crashed"))); };
   const call = (msg, transfer) => new Promise((resolve, reject) => { const id = ++seq; waits[id] = { resolve, reject }; w.postMessage({ ...msg, id }, transfer || []); });
-  return { call, onProgress: null };
+  return { call, onProgress: null, terminate: () => { try { w.terminate(); } catch {} Object.values(waits).forEach((p) => p.reject(new Error("__restart"))); } };
 }
+let asrDevice = null;
 async function loadASR() {
   if (window.CLIPVORTEX_TEST_ASR) return { device: "test" };
-  if (!asr) asr = asrWorker();
   const files = {};
-  asr.onProgress = (p) => { files[p.file] = p.progress || 0; const v = Object.values(files); stage(null, 3 + 12 * (v.reduce((a, b) => a + b, 0) / v.length / 100)); $("#sub").textContent = `Downloading the speech model (one time, ~80 MB)… ${Math.round(v.reduce((a, b) => a + b, 0) / v.length)}%`; };
-  const res = await Promise.race([
-    asr.call({ type: "load", lib: TRANSFORMERS_URL, model: ASR_MODEL, webgpu: !!navigator.gpu }),
-    sleep(180000).then(() => { throw new Error("timed out loading the speech model"); }),
-  ]);
+  const onProgress = (p) => {
+    files[p.file] = p.progress || 0;
+    const v = Object.values(files), avg = v.reduce((a, b) => a + b, 0) / v.length;
+    stage(null, 3 + 12 * (avg / 100));
+    $("#sub").textContent = avg < 100 ? `Downloading the speech model (one time, ~80 MB)… ${Math.round(avg)}%` : "Starting the speech model…";
+  };
+  const lib = window.CV_TRANSFORMERS_URL || TRANSFORMERS_URL;
+  const load = async (tryGpu) => {
+    if (!asr) asr = asrWorker();
+    asr.onProgress = onProgress;
+    return Promise.race([
+      asr.call({ type: "load", lib, model: ASR_MODEL, tryGpu }),
+      sleep(20 * 60000).then(() => { throw new Error("timed out loading the speech model — check your internet connection"); }),
+    ]);
+  };
+  let res = await load(true);
+  if (res.type === "gpufail") {
+    log("graphics card (WebGPU) not usable here — switching to CPU: " + res.message);
+    asr.terminate(); asr = null;
+    res = await load(false);
+  }
+  asrDevice = res.device;
   return res;
+}
+async function useCpuASR() {
+  log("speech model failed on the graphics card — retrying on CPU");
+  if (asr) asr.terminate();
+  asr = asrWorker();
+  const r = await asr.call({ type: "load", lib: window.CV_TRANSFORMERS_URL || TRANSFORMERS_URL, model: ASR_MODEL, tryGpu: false });
+  asrDevice = r.device;
 }
 async function transcribeRange(r0, r1, language, task) {
   const words = [];
@@ -895,7 +927,15 @@ async function transcribeRange(r0, r1, language, task) {
     const slice = S.audio.slice(Math.floor(a * 16000), Math.floor(b * 16000));
     let chunks;
     if (window.CLIPVORTEX_TEST_ASR) chunks = await window.CLIPVORTEX_TEST_ASR(slice, a);
-    else chunks = (await asr.call({ type: "run", audio: slice, language: language || null, task }, [slice.buffer])).chunks;
+    else {
+      const msg = { type: "run", language: language || null, task };
+      try { chunks = (await asr.call({ ...msg, audio: slice.slice(0) })).chunks; }
+      catch (e) {
+        if (asrDevice !== "webgpu") throw e;
+        await useCpuASR();
+        chunks = (await asr.call({ ...msg, audio: slice })).chunks;
+      }
+    }
     for (const c of chunks) {
       const w = (c.text || "").trim(); if (!w) continue;
       const ts = c.timestamp || [];
@@ -1212,7 +1252,7 @@ async function runJob(o) {
       log("speech model failed: " + e.message);
       const msg = inPreview
         ? "Auto captions can't run inside this preview window (it blocks downloading the AI model). They work on your own GitHub Pages copy. You can continue without captions, or go back and use a subtitle file."
-        : `Couldn't load the speech-recognition model (${e.message}). Check your internet connection and try again, or continue without captions.`;
+        : `Couldn't start the speech-recognition model (${e.message}). Try reloading the page, or continue without captions (or use a subtitle file).`;
       const ch = await ask(msg, [["Continue without captions", "go", true], ["Go back", "back"]]);
       if (ch === "back") throw new Error("__cancel");
       o.captions = false; o.silence = false;
