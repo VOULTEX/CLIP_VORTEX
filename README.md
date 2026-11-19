@@ -59,7 +59,9 @@ A website can't download from YouTube by itself; browsers and YouTube block it. 
 ```
 bash install-linux.sh
 ```
-It installs everything, then starts the helper. Next time, just run `./run.sh` in that folder.
+It installs everything, then starts the helper. If your Python is older than 3.11 (Ubuntu 22.04 has 3.10), it automatically fetches Python 3.12 just for Clip Vortex, without changing your system. Next time, just run `./run.sh` in that folder.
+
+If apt shows errors about some *other* package (for example `rtbth-dkms`), that's a separate problem with your system. The script carries on as long as ffmpeg and Python got installed.
 
 **Mac:** `brew install ffmpeg deno python`, then run `./run.sh` inside `server-version`.
 

@@ -176,6 +176,12 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:30px 24px 40p
         <label class="field sm"><span>Cobalt API key <i class="hint">(only if your instance needs one)</i></span>
           <input id="cobaltKey" type="text" placeholder="optional"></label>
         <button type="button" class="ghost" id="testDl">Test connection</button>
+        <div class="note" id="helperHelp" style="margin-top:12px" hidden>
+          <b>Helper not found? Check in 3 steps:</b><br>
+          1. Is the helper started? In the <b>server-version</b> folder run <code>bash install-linux.sh</code> (first time) or <code>./run.sh</code> (Linux/Mac), or double-click <b>run.bat</b> (Windows). Wait until it says <i>“Clip Vortex is running at http://localhost:8000”</i> and keep that window open.<br>
+          2. Open <a id="healthLink" href="http://localhost:8000/api/health" target="_blank" rel="noopener">http://localhost:8000/api/health</a> in a new tab. If it shows <code>"ok": true</code>, the helper is fine and your browser is blocking this site from talking to it (Brave Shields, Safari, or a denied "local network" prompt).<br>
+          3. Easiest fix for step 2: use Clip Vortex straight from the helper at <a id="helperSite" href="http://localhost:8000" target="_blank" rel="noopener"><b>http://localhost:8000</b></a>. It's the same site, already connected.
+        </div>
       </details>
     </div>
 
@@ -605,8 +611,14 @@ async function checkHelper() {
   if (inPreview) { chip.textContent = "· not available in this preview"; return false; }
   const base = cleanBase($("#helperUrl").value);
   if (!base) { chip.textContent = ""; return false; }
-  try { const h = await helperHealth(base); chip.innerHTML = h.fetch ? `· <span class="ok">Helper connected ✓</span>` : `· <span class="bad">Helper is outdated</span>`; return !!h.fetch; }
-  catch { chip.innerHTML = `· <span class="muted">Helper not running</span>`; return false; }
+  try { const h = await helperHealth(base); $("#helperHelp").hidden = true; chip.innerHTML = h.fetch ? `· <span class="ok">Helper connected ✓</span>` : `· <span class="bad">Helper is outdated</span>`; return !!h.fetch; }
+  catch {
+    chip.innerHTML = `· <span class="muted">Helper not running</span>`;
+    $("#helperHelp").hidden = false;
+    $("#healthLink").href = $("#healthLink").textContent = `${base}/api/health`;
+    $("#helperSite").href = base; $("#helperSite b").textContent = base;
+    return false;
+  }
 }
 $("#testDl").addEventListener("click", async (e) => {
   const b = e.currentTarget; b.disabled = true; const out = [];
